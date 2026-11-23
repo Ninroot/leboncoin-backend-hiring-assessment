@@ -14,6 +14,8 @@ type Store interface {
 	GetAdByID(ctx context.Context, id domain.AdID) (domain.Ad, error)
 	// SearchAds returns all ads matching the filters.
 	SearchAds(ctx context.Context, req SearchAdsRequest) ([]domain.Ad, error)
+	// DeleteAdByID deletes an ad by its identifier. It returns ErrNotFound if no ad matches the identifier.
+	DeleteAdByID(ctx context.Context, id domain.AdID) error
 }
 
 // DAO stores and retrieves ads.

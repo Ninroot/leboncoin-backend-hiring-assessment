@@ -179,6 +179,34 @@ func TestCreateAd(t *testing.T) {
 	})
 }
 
+func TestDeleteAdByID(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("returns nil on success", func(t *testing.T) {
+		dao, mock := newMockDAO(t)
+		mock.ExpectExec("DELETE").
+			WithArgs(int64(42)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		err := dao.DeleteAdByID(ctx, 42)
+		require.NoError(t, err)
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("returns error on failure", func(t *testing.T) {
+		dao, mock := newMockDAO(t)
+		dbDown := errors.New("db down")
+		mock.ExpectExec("DELETE").
+			WithArgs(int64(42)).
+			WillReturnError(dbDown)
+
+		err := dao.DeleteAdByID(ctx, 42)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, dbDown)
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
 func TestTransaction(t *testing.T) {
 	ctx := context.Background()
 	req := adsdao.CreateAdRequest{

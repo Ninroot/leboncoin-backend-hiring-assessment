@@ -9,7 +9,7 @@ import (
 )
 
 type (
-	// GetAdByIDFunc returns a single ad. It fails with ErrorCodeNotFound when no ad matches the identifier.
+	// GetAdByIDFunc returns a single ad. It fails with adsdao.ErrNotFound when no ad matches the identifier.
 	GetAdByIDFunc func(ctx context.Context, id domain.AdID) (domain.Ad, error)
 
 	getAdByID struct {
