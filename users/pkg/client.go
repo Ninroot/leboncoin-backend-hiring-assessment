@@ -8,6 +8,7 @@ import (
 
 type UserClient interface {
 	ListUsers(ctx context.Context) ([]User, error)
+	// GetUserByID returns the user with the given ID. It fails with api.ErrNotFound when no user matches the identifier.
 	GetUserByID(ctx context.Context, userID model.UserID) (User, error)
 }
 

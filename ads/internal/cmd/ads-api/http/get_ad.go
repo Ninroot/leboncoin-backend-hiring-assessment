@@ -12,22 +12,24 @@ import (
 )
 
 type getAdResponse struct {
-	ID         int64     `json:"id"`
-	Title      string    `json:"title"`
-	PriceCents int64     `json:"price_cents"`
-	PhotoURL   string    `json:"photo_url"`
-	UserID     string    `json:"user_id"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID           int64     `json:"id"`
+	Title        string    `json:"title"`
+	PriceCents   int64     `json:"price_cents"`
+	PhotoURL     string    `json:"photo_url"`
+	UserID       string    `json:"user_id"`
+	UserNickname string    `json:"user_nickname"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 func adToGetAdResponse(a domain.Ad) getAdResponse {
 	return getAdResponse{
-		ID:         int64(a.ID),
-		Title:      a.Title,
-		PriceCents: a.Price,
-		PhotoURL:   a.PhotoURL,
-		UserID:     a.UserID.String(),
-		CreatedAt:  a.CreatedAt.UTC(),
+		ID:           int64(a.ID),
+		Title:        a.Title,
+		PriceCents:   a.Price,
+		PhotoURL:     a.PhotoURL,
+		UserID:       a.UserID.String(),
+		UserNickname: a.UserNickname,
+		CreatedAt:    a.CreatedAt.UTC(),
 	}
 }
 
