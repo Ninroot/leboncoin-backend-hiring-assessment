@@ -2,7 +2,7 @@ openapi: "3.0.3"
 
 info:
   title: Ads API
-  description: Classified ads — list, read, and create ads.
+  description: Classified ads — list, read, create, import and delete ads.
   version: "1.0.0"
 
 servers:
@@ -65,6 +65,10 @@ paths:
 
     post:
       summary: Create an ad
+      description: |
+        Creates an ad owned by the caller. A user can create at most 5 ads per rolling 24 hours
+        (configurable with AD_QUOTA_MAX and AD_QUOTA_WINDOW). Ads created through
+        POST /ads/import count toward this limit, but the import itself is not limited by it.
       operationId: createAd
       tags: [ads]
       security:
@@ -86,31 +90,88 @@ paths:
           description: Malformed or unknown request body field.
         "401":
           description: Missing Authorization header.
+        "429":
+          description: The caller has reached their ad creation quota for the current window.
         "500":
           description: Unexpected server error.
 
+  /ads/import:
+    post:
+      summary: Import ads in bulk
+      description: |
+        Creates several ads owned by the caller, all or nothing: the ads are inserted in a single
+        transaction, so if any of them fails, none is created and the import can be retried.
+
+        The import is not subject to the POST /ads quota, but the ads it creates count toward it.
+
+        The import is not idempotent: if the response is lost after a successful import
+        (timeout, dropped connection), retrying it creates the ads a second time.
+      operationId: importAds
+      tags: [ads]
+      security:
+        - userID: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportAdsBody"
+      responses:
+        "201":
+          description: Ads created. The body contains the generated identifiers, in the order of the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportAdsResponse"
+        "400":
+          description: Malformed or unknown request body field.
+        "401":
+          description: Missing Authorization header.
+        "500":
+          description: Unexpected server error. No ad was created.
+
   /ads/{adID}:
+    parameters:
+      - name: adID
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+        example: 1
+
     get:
       summary: Get an ad by ID
+      description: Returns the ad along with the nickname of its owner, read from the identity service.
       operationId: getAd
       tags: [ads]
-      parameters:
-        - name: adID
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-          example: 1
       responses:
         "200":
           description: The requested ad.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Ad"
+                $ref: "#/components/schemas/AdWithOwner"
         "400":
           description: adID is not a valid integer.
+        "404":
+          description: No ad exists with this ID.
+        "500":
+          description: Unexpected server error, including the identity service being unavailable or not knowing the owner.
+
+    delete:
+      summary: Delete an ad by ID
+      operationId: deleteAd
+      tags: [ads]
+      security:
+        - userID: []
+      responses:
+        "204":
+          description: Ad deleted.
+        "400":
+          description: adID is not a valid integer.
+        "401":
+          description: Missing Authorization header.
         "404":
           description: No ad exists with this ID.
         "500":
@@ -152,6 +213,17 @@ components:
           format: date-time
           example: "2024-01-15T10:00:00Z"
 
+    AdWithOwner:
+      allOf:
+        - $ref: "#/components/schemas/Ad"
+        - type: object
+          required: [user_nickname]
+          properties:
+            user_nickname:
+              type: string
+              description: Nickname of the ad owner, from the identity service.
+              example: alice
+
     ListAdsResponse:
       type: object
       required: [ads]
@@ -186,3 +258,24 @@ components:
           format: int64
           description: Generated identifier of the new ad.
           example: 42
+
+    ImportAdsBody:
+      type: object
+      required: [ads]
+      properties:
+        ads:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateAdBody"
+
+    ImportAdsResponse:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          description: Generated identifiers, in the order of the request.
+          items:
+            type: integer
+            format: int64
+          example: [42, 43]

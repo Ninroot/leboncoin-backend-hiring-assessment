@@ -14,7 +14,7 @@ import (
 func TestImportAd(t *testing.T) {
 	ctx := context.Background()
 
-	var ucReq ImportAdRequest = []CreateAdRequest{
+	var ucReq ImportAdsRequest = []CreateAdRequest{
 		{
 			Title:      "mountain bike",
 			PriceCents: 15000,
@@ -49,7 +49,7 @@ func TestImportAd(t *testing.T) {
 		m := mock.New(t)
 		m.On("ImportAds", ctx, daoReqs).Return([]domain.AdID{1, 2}, nil)
 
-		got, err := NewImportAdFunc(m)(ctx, ucReq)
+		got, err := NewImportAdsFunc(m)(ctx, ucReq)
 
 		require.NoError(t, err)
 		require.Equal(t, []domain.AdID{1, 2}, got)
@@ -60,7 +60,7 @@ func TestImportAd(t *testing.T) {
 		dbErr := errors.New("connection reset")
 		m.On("ImportAds", ctx, daoReqs).Return(nil, dbErr)
 
-		_, err := NewImportAdFunc(m)(ctx, ucReq)
+		_, err := NewImportAdsFunc(m)(ctx, ucReq)
 
 		require.Error(t, err)
 		require.ErrorIs(t, err, dbErr)

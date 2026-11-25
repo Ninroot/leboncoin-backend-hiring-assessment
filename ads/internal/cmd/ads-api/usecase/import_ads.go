@@ -9,20 +9,20 @@ import (
 )
 
 type (
-	ImportAdFunc    func(ctx context.Context, req ImportAdRequest) ([]domain.AdID, error)
-	ImportAdRequest []CreateAdRequest
+	ImportAdsFunc    func(ctx context.Context, req ImportAdsRequest) ([]domain.AdID, error)
+	ImportAdsRequest []CreateAdRequest
 
 	importAd struct {
 		adDAO adsdao.DAO
 	}
 )
 
-// NewImportAdFunc returns an ImportAdFunc backed by the given DAO.
-func NewImportAdFunc(adDAO adsdao.DAO) ImportAdFunc {
+// NewImportAdsFunc returns an ImportAdsFunc backed by the given DAO.
+func NewImportAdsFunc(adDAO adsdao.DAO) ImportAdsFunc {
 	return importAd{adDAO: adDAO}.importAd
 }
 
-func (uc importAd) importAd(ctx context.Context, req ImportAdRequest) ([]domain.AdID, error) {
+func (uc importAd) importAd(ctx context.Context, req ImportAdsRequest) ([]domain.AdID, error) {
 	importAdsRequest := make([]adsdao.CreateAdRequest, len(req))
 
 	for i, ad := range req {
@@ -36,7 +36,7 @@ func (uc importAd) importAd(ctx context.Context, req ImportAdRequest) ([]domain.
 
 	adID, err := uc.adDAO.ImportAds(ctx, importAdsRequest)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create ad: %w", err)
+		return nil, fmt.Errorf("unable to create import ads: %w", err)
 	}
 
 	return adID, nil
