@@ -207,6 +207,51 @@ func TestDeleteAdByID(t *testing.T) {
 	})
 }
 
+func TestImportAds(t *testing.T) {
+	reqs := []adsdao.CreateAdRequest{
+		{Title: "bike", PriceCents: 5000, PhotoURL: "https://example.com/bike.jpg", OwnerID: "user-1"},
+		{Title: "scooter", PriceCents: 12000, PhotoURL: "https://example.com/scooter.jpg", OwnerID: "user-2"},
+	}
+
+	t.Run("nominal", func(t *testing.T) {
+		ctx := context.Background()
+		dao, mock := newMockDAO(t)
+
+		mock.ExpectBegin()
+		mock.ExpectQuery("INSERT").
+			WithArgs(reqs[0].Title, reqs[0].PriceCents, reqs[0].PhotoURL, string(reqs[0].OwnerID)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(1)))
+		mock.ExpectQuery("INSERT").
+			WithArgs(reqs[1].Title, reqs[1].PriceCents, reqs[1].PhotoURL, string(reqs[1].OwnerID)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(2)))
+		mock.ExpectCommit()
+
+		ids, err := dao.ImportAds(ctx, reqs)
+		require.NoError(t, err)
+
+		assert.Equal(t, []domain.AdID{1, 2}, ids)
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("rolls back on error", func(t *testing.T) {
+		ctx := context.Background()
+		dao, mock := newMockDAO(t)
+
+		mock.ExpectBegin()
+		mock.ExpectQuery("INSERT").
+			WithArgs(reqs[0].Title, reqs[0].PriceCents, reqs[0].PhotoURL, string(reqs[0].OwnerID)).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(1)))
+		mock.ExpectQuery("INSERT").
+			WithArgs(reqs[1].Title, reqs[1].PriceCents, reqs[1].PhotoURL, string(reqs[1].OwnerID)).
+			WillReturnError(errors.New("db down"))
+		mock.ExpectRollback()
+
+		_, err := dao.ImportAds(ctx, reqs)
+		require.Error(t, err)
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
 func TestTransaction(t *testing.T) {
 	ctx := context.Background()
 	req := adsdao.CreateAdRequest{

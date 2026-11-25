@@ -198,6 +198,29 @@ func (d *DAO) DeleteAdByID(ctx context.Context, id domain.AdID) error {
 	return nil
 }
 
+func (d *DAO) ImportAds(ctx context.Context, req adsdao.ImportAdsRequest) ([]domain.AdID, error) {
+	tx, err := d.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var adIDs []domain.AdID
+	for _, ad := range req {
+		id, err := tx.CreateAd(ctx, ad)
+		if err != nil {
+			return nil, fmt.Errorf("unable to create ad: %w", err)
+		}
+		adIDs = append(adIDs, id)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("unable to commit transaction: %w", err)
+	}
+
+	return adIDs, nil
+}
+
 func scanAd(row *sql.Row) (domain.Ad, error) {
 	var ad domain.Ad
 	if err := row.Scan(&ad.ID, &ad.Title, &ad.Price, &ad.PhotoURL, &ad.UserID, &ad.CreatedAt); err != nil {

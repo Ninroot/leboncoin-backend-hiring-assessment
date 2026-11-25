@@ -16,6 +16,7 @@ type Store interface {
 	SearchAds(ctx context.Context, req SearchAdsRequest) ([]domain.Ad, error)
 	// DeleteAdByID deletes an ad by its identifier. It returns ErrNotFound if no ad matches the identifier.
 	DeleteAdByID(ctx context.Context, id domain.AdID) error
+	ImportAds(ctx context.Context, req ImportAdsRequest) ([]domain.AdID, error)
 }
 
 // DAO stores and retrieves ads.
@@ -49,6 +50,8 @@ type CreateAdRequest struct {
 	PhotoURL   string
 	OwnerID    domain.UserID
 }
+
+type ImportAdsRequest []CreateAdRequest
 
 const (
 	// ErrNotFound is returned when no ad matches the requested identifier.
