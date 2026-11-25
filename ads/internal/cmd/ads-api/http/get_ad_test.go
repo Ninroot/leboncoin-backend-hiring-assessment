@@ -28,12 +28,13 @@ func TestHandlerGetAd(t *testing.T) {
 
 	t.Run("returns 200 with ad JSON on success", func(t *testing.T) {
 		ad := domain.Ad{
-			ID:        42,
-			Title:     "mountain bike",
-			Price:     15000,
-			PhotoURL:  "https://example.com/bike.jpg",
-			UserID:    "user-1",
-			CreatedAt: createdAt,
+			ID:           42,
+			Title:        "mountain bike",
+			Price:        15000,
+			PhotoURL:     "https://example.com/bike.jpg",
+			UserID:       "user-1",
+			CreatedAt:    createdAt,
+			UserNickname: "Alice",
 		}
 		srv := newGetAdServer(func(_ context.Context, id domain.AdID) (domain.Ad, error) {
 			return ad, nil
@@ -54,6 +55,7 @@ func TestHandlerGetAd(t *testing.T) {
 		assert.Equal(t, int64(15000), got.PriceCents)
 		assert.Equal(t, "https://example.com/bike.jpg", got.PhotoURL)
 		assert.Equal(t, "user-1", got.UserID)
+		assert.Equal(t, "Alice", got.UserNickname)
 		assert.Equal(t, createdAt, got.CreatedAt)
 	})
 
