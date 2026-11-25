@@ -193,6 +193,18 @@ func TestDeleteAdByID(t *testing.T) {
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
 
+	t.Run("returns ErrNotFound when no row is deleted", func(t *testing.T) {
+		dao, mock := newMockDAO(t)
+		mock.ExpectExec("DELETE").
+			WithArgs(int64(99)).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+
+		err := dao.DeleteAdByID(ctx, 99)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, adsdao.ErrNotFound)
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
 	t.Run("returns error on failure", func(t *testing.T) {
 		dao, mock := newMockDAO(t)
 		dbDown := errors.New("db down")
