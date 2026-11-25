@@ -13,6 +13,7 @@ import (
 	"github.mpi-internal.com/leboncoin/backend-hiring-assessment/ads/internal/cmd/ads-api/domain"
 	"github.mpi-internal.com/leboncoin/backend-hiring-assessment/ads/internal/cmd/ads-api/usecase"
 	pkguser "github.mpi-internal.com/leboncoin/backend-hiring-assessment/users/pkg"
+	"github.mpi-internal.com/leboncoin/backend-hiring-assessment/users/pkg/api"
 	mockuser "github.mpi-internal.com/leboncoin/backend-hiring-assessment/users/pkg/mock"
 )
 
@@ -24,14 +25,17 @@ func TestGetAdByID(t *testing.T) {
 		u := mockuser.New(t)
 
 		const adID = 42
-		want := domain.Ad{ID: adID, Title: "bike", Price: 5000, UserID: "user-1", UserNickname: "alice"}
+		stored := domain.Ad{ID: adID, Title: "bike", Price: 5000, UserID: "user-1"}
 
-		d.On("GetAdByID", ctx, domain.AdID(adID)).Return(want, nil)
-		u.On("GetUserByID", ctx, want.UserID).Return(pkguser.User{UserID: want.UserID, Nickname: "alice"}, nil)
+		d.On("GetAdByID", ctx, domain.AdID(adID)).Return(stored, nil)
+		u.On("GetUserByID", ctx, stored.UserID).Return(pkguser.User{UserID: stored.UserID, Nickname: "alice"}, nil)
 
 		got, err := usecase.NewGetAdByIDFunc(d, u)(ctx, adID)
 
 		require.NoError(t, err)
+
+		want := stored
+		want.UserNickname = "alice"
 		assert.Equal(t, want, got)
 	})
 
@@ -47,22 +51,38 @@ func TestGetAdByID(t *testing.T) {
 		assert.ErrorIs(t, err, adsdao.ErrNotFound)
 	})
 
-	t.Run("error from user client", func(t *testing.T) {
+	t.Run("returns the ad without nickname when the identity service fails", func(t *testing.T) {
 		d := mockdao.New(t)
 		u := mockuser.New(t)
 
 		const adID = 42
-		ad := domain.Ad{ID: adID, Title: "bike", Price: 5000, UserID: "user-1"}
+		stored := domain.Ad{ID: adID, Title: "bike", Price: 5000, UserID: "user-1"}
 
-		d.On("GetAdByID", ctx, domain.AdID(adID)).Return(ad, nil)
+		d.On("GetAdByID", ctx, domain.AdID(adID)).Return(stored, nil)
+		u.On("GetUserByID", ctx, stored.UserID).Return(pkguser.User{}, errors.New("connection reset"))
 
-		clientErr := errors.New("connection reset")
-		u.On("GetUserByID", ctx, ad.UserID).Return(pkguser.User{}, clientErr)
+		got, err := usecase.NewGetAdByIDFunc(d, u)(ctx, adID)
 
-		_, err := usecase.NewGetAdByIDFunc(d, u)(ctx, adID)
+		require.NoError(t, err)
+		assert.Equal(t, stored, got)
+		assert.Empty(t, got.UserNickname)
+	})
 
-		require.Error(t, err)
-		assert.ErrorIs(t, err, clientErr)
+	t.Run("returns the ad without nickname when the owner is unknown to the identity service", func(t *testing.T) {
+		d := mockdao.New(t)
+		u := mockuser.New(t)
+
+		const adID = 42
+		stored := domain.Ad{ID: adID, Title: "bike", Price: 5000, UserID: "user-1"}
+
+		d.On("GetAdByID", ctx, domain.AdID(adID)).Return(stored, nil)
+		u.On("GetUserByID", ctx, stored.UserID).Return(pkguser.User{}, api.ErrNotFound)
+
+		got, err := usecase.NewGetAdByIDFunc(d, u)(ctx, adID)
+
+		require.NoError(t, err)
+		assert.Equal(t, stored, got)
+		assert.Empty(t, got.UserNickname)
 	})
 
 	t.Run("error from dao", func(t *testing.T) {

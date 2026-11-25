@@ -59,6 +59,24 @@ func TestHandlerGetAd(t *testing.T) {
 		assert.Equal(t, createdAt, got.CreatedAt)
 	})
 
+	t.Run("omits user_nickname when the usecase could not resolve it", func(t *testing.T) {
+		srv := newGetAdServer(func(_ context.Context, id domain.AdID) (domain.Ad, error) {
+			return domain.Ad{ID: id, Title: "mountain bike", UserID: "user-1", CreatedAt: createdAt}, nil
+		})
+		defer srv.Close()
+
+		resp, err := http.Get(srv.URL + "/ads/42")
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var got map[string]any
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&got))
+		assert.NotContains(t, got, "user_nickname")
+		assert.Equal(t, "user-1", got["user_id"])
+	})
+
 	t.Run("returns 400 when adID is not a number", func(t *testing.T) {
 		srv := newGetAdServer(func(_ context.Context, _ domain.AdID) (domain.Ad, error) {
 			t.Fatal("usecase should not be called")

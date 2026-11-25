@@ -142,7 +142,10 @@ paths:
 
     get:
       summary: Get an ad by ID
-      description: Returns the ad along with the nickname of its owner, read from the identity service.
+      description: |
+        Returns the ad along with the nickname of its owner, read from the identity service.
+        The nickname is best effort: when the identity service is unavailable or does not know
+        the owner, the ad is still returned, without user_nickname.
       operationId: getAd
       tags: [ads]
       responses:
@@ -157,7 +160,7 @@ paths:
         "404":
           description: No ad exists with this ID.
         "500":
-          description: Unexpected server error, including the identity service being unavailable or not knowing the owner.
+          description: Unexpected server error.
 
     delete:
       summary: Delete an ad by ID
@@ -217,11 +220,10 @@ components:
       allOf:
         - $ref: "#/components/schemas/Ad"
         - type: object
-          required: [user_nickname]
           properties:
             user_nickname:
               type: string
-              description: Nickname of the ad owner, from the identity service.
+              description: Nickname of the ad owner, from the identity service. Absent when it could not be resolved.
               example: alice
 
     ListAdsResponse:

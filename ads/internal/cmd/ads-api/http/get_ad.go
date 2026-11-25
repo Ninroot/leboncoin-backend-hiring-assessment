@@ -17,7 +17,7 @@ type getAdResponse struct {
 	PriceCents   int64     `json:"price_cents"`
 	PhotoURL     string    `json:"photo_url"`
 	UserID       string    `json:"user_id"`
-	UserNickname string    `json:"user_nickname"`
+	UserNickname string    `json:"user_nickname,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 }
 
