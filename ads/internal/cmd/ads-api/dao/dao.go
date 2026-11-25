@@ -2,6 +2,7 @@ package dao
 
 import (
 	"context"
+	"time"
 
 	"github.mpi-internal.com/leboncoin/backend-hiring-assessment/ads/internal/cmd/ads-api/domain"
 )
@@ -17,6 +18,10 @@ type Store interface {
 	// DeleteAdByID deletes an ad by its identifier. It returns ErrNotFound if no ad matches the identifier.
 	DeleteAdByID(ctx context.Context, id domain.AdID) error
 	ImportAds(ctx context.Context, req ImportAdsRequest) ([]domain.AdID, error)
+	// LockOwner serializes writes for the given owner until the current transaction ends. It is only meaningful on a Tx: outside a transaction it returns an error.
+	LockOwner(ctx context.Context, owner domain.UserID) error
+	// CountAdsSince returns how many ads the owner created during the last window.
+	CountAdsSince(ctx context.Context, owner domain.UserID, window time.Duration) (int, error)
 }
 
 // DAO stores and retrieves ads.
@@ -58,6 +63,8 @@ const (
 	ErrNotFound sentinelError = "ad not found"
 	// ErrUnknownOwner is returned when an ad references a user that does not exist.
 	ErrUnknownOwner sentinelError = "unknown owner"
+	// ErrQuotaExceeded is returned when a user has reached the maximum number of ads they can create.
+	ErrQuotaExceeded sentinelError = "exceed quota"
 )
 
 type sentinelError string

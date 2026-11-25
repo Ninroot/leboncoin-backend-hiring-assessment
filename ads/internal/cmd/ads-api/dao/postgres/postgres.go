@@ -178,6 +178,38 @@ func (d *DAO) CreateAd(ctx context.Context, req adsdao.CreateAdRequest) (domain.
 	return id, nil
 }
 
+// LockOwner takes a transaction-scoped advisory lock on the owner, so concurrent transactions for the same owner run one after the other. The lock is released on Commit or Rollback.
+func (d *DAO) LockOwner(ctx context.Context, owner domain.UserID) error {
+	if d.tx == nil {
+		return errors.New("unable to lock owner outside a transaction")
+	}
+
+	// exclusive lock on key owner in the current transaction.
+	// pg_advisory_xact_lock takes a BIGINT key, so we hash the owner string to get an integer.
+	const query = `SELECT pg_advisory_xact_lock(hashtext($1))`
+
+	if _, err := d.tx.ExecContext(ctx, query, string(owner)); err != nil {
+		return fmt.Errorf("unable to lock owner: %w", err)
+	}
+
+	return nil
+}
+
+// CountAdsSince returns how many ads the owner created during the last window.
+func (d *DAO) CountAdsSince(ctx context.Context, owner domain.UserID, window time.Duration) (int, error) {
+	const query = `
+		SELECT COUNT(*) FROM ads
+		WHERE user_id = $1::uuid
+		  AND created_at >= NOW() - make_interval(secs => $2)`
+
+	var count int
+	if err := d.runner().QueryRowContext(ctx, query, string(owner), window.Seconds()).Scan(&count); err != nil {
+		return 0, fmt.Errorf("unable to count ads: %w", err)
+	}
+
+	return count, nil
+}
+
 func (d *DAO) DeleteAdByID(ctx context.Context, id domain.AdID) error {
 	const query = `DELETE FROM ads WHERE id = $1`
 

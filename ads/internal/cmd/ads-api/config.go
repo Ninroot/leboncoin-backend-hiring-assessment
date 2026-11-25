@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -15,6 +16,10 @@ type Config struct {
 	IdentityURL string
 	// IdentityTimeout bounds every call to the identity service.
 	IdentityTimeout time.Duration
+	// AdQuotaMax is the number of ads an owner can create per AdQuotaWindow. Zero disables the quota.
+	AdQuotaMax int
+	// AdQuotaWindow is the sliding period AdQuotaMax applies to.
+	AdQuotaWindow time.Duration
 }
 
 // Load reads the configuration from the environment.
@@ -24,7 +29,18 @@ func Load() Config {
 		DatabaseURL:     text("DATABASE_URL", "postgres://ads:ads@localhost:5432/ads?sslmode=disable"),
 		IdentityURL:     text("IDENTITY_URL", "http://localhost:8081"),
 		IdentityTimeout: duration("IDENTITY_TIMEOUT", 2*time.Second),
+		AdQuotaMax:      integer("AD_QUOTA_MAX", 5),
+		AdQuotaWindow:   duration("AD_QUOTA_WINDOW", 24*time.Hour),
 	}
+}
+
+func integer(name string, fallback int) int {
+	value, err := strconv.Atoi(os.Getenv(name))
+	if err != nil {
+		return fallback
+	}
+
+	return value
 }
 
 func text(name, fallback string) string {

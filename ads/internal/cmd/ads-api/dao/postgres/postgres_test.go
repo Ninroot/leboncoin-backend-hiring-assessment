@@ -352,3 +352,71 @@ func TestTransaction(t *testing.T) {
 		require.Error(t, dao.Rollback())
 	})
 }
+
+func TestLockOwner(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("takes an advisory lock inside a transaction", func(t *testing.T) {
+		dao, mock := newMockDAO(t)
+		mock.ExpectBegin()
+		mock.ExpectExec("pg_advisory_xact_lock").
+			WithArgs("user-1").
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectRollback()
+
+		tx, err := dao.Begin(ctx)
+		require.NoError(t, err)
+		require.NoError(t, tx.LockOwner(ctx, "user-1"))
+		require.NoError(t, tx.Rollback())
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("refuses to lock outside a transaction", func(t *testing.T) {
+		dao, mock := newMockDAO(t)
+
+		require.Error(t, dao.LockOwner(ctx, "user-1"))
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("returns the database error", func(t *testing.T) {
+		dao, mock := newMockDAO(t)
+		boom := errors.New("boom")
+		mock.ExpectBegin()
+		mock.ExpectExec("pg_advisory_xact_lock").WithArgs("user-1").WillReturnError(boom)
+
+		tx, err := dao.Begin(ctx)
+		require.NoError(t, err)
+		assert.ErrorIs(t, tx.LockOwner(ctx, "user-1"), boom)
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestCountAdsSince(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("returns the count for the owner and window", func(t *testing.T) {
+		dao, mock := newMockDAO(t)
+		mock.ExpectQuery("SELECT COUNT").
+			WithArgs("user-1", float64(3600)).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(4))
+
+		got, err := dao.CountAdsSince(ctx, "user-1", time.Hour)
+
+		require.NoError(t, err)
+		assert.Equal(t, 4, got)
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("returns the database error", func(t *testing.T) {
+		dao, mock := newMockDAO(t)
+		boom := errors.New("boom")
+		mock.ExpectQuery("SELECT COUNT").
+			WithArgs("user-1", float64(3600)).
+			WillReturnError(boom)
+
+		_, err := dao.CountAdsSince(ctx, "user-1", time.Hour)
+
+		assert.ErrorIs(t, err, boom)
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+}
