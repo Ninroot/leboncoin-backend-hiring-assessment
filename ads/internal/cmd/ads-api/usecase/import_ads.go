@@ -9,35 +9,49 @@ import (
 )
 
 type (
-	ImportAdsFunc    func(ctx context.Context, req ImportAdsRequest) ([]domain.AdID, error)
+	// ImportAdsFunc creates several ads, all or nothing: if one of them cannot be created, none is. It returns the generated identifiers in the order of the request. The ad creation quota does not apply.
+	ImportAdsFunc func(ctx context.Context, req ImportAdsRequest) ([]domain.AdID, error)
+
+	// ImportAdsRequest lists the ads to create.
 	ImportAdsRequest []CreateAdRequest
 
-	importAd struct {
+	importAds struct {
 		adDAO adsdao.DAO
 	}
 )
 
 // NewImportAdsFunc returns an ImportAdsFunc backed by the given DAO.
 func NewImportAdsFunc(adDAO adsdao.DAO) ImportAdsFunc {
-	return importAd{adDAO: adDAO}.importAd
+	return importAds{adDAO: adDAO}.importAds
 }
 
-func (uc importAd) importAd(ctx context.Context, req ImportAdsRequest) ([]domain.AdID, error) {
-	importAdsRequest := make([]adsdao.CreateAdRequest, len(req))
+// importAds inserts every ad in one transaction.
+func (uc importAds) importAds(ctx context.Context, req ImportAdsRequest) ([]domain.AdID, error) {
+	tx, err := uc.adDAO.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to import ads: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	ids := make([]domain.AdID, 0, len(req))
 
 	for i, ad := range req {
-		importAdsRequest[i] = adsdao.CreateAdRequest{
+		id, err := tx.CreateAd(ctx, adsdao.CreateAdRequest{
 			Title:      ad.Title,
 			PriceCents: ad.PriceCents,
 			PhotoURL:   ad.PhotoURL,
 			OwnerID:    ad.OwnerID,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("unable to import ads: ad %d: %w", i, err)
 		}
+
+		ids = append(ids, id)
 	}
 
-	adID, err := uc.adDAO.ImportAds(ctx, importAdsRequest)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create import ads: %w", err)
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("unable to import ads: %w", err)
 	}
 
-	return adID, nil
+	return ids, nil
 }

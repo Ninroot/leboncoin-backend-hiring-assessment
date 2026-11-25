@@ -60,14 +60,6 @@ func (m *Mock) DeleteAdByID(ctx context.Context, id domain.AdID) error {
 	return args.Error(0)
 }
 
-func (m *Mock) ImportAds(ctx context.Context, req adsdao.ImportAdsRequest) ([]domain.AdID, error) {
-	args := m.Called(ctx, req)
-
-	adIDs, _ := args.Get(0).([]domain.AdID)
-
-	return adIDs, args.Error(1)
-}
-
 // LockOwner returns the error set on the mock.
 func (m *Mock) LockOwner(ctx context.Context, owner domain.UserID) error {
 	return m.Called(ctx, owner).Error(0)

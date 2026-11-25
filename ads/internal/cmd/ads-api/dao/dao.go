@@ -17,7 +17,6 @@ type Store interface {
 	SearchAds(ctx context.Context, req SearchAdsRequest) ([]domain.Ad, error)
 	// DeleteAdByID deletes an ad by its identifier. It returns ErrNotFound if no ad matches the identifier.
 	DeleteAdByID(ctx context.Context, id domain.AdID) error
-	ImportAds(ctx context.Context, req ImportAdsRequest) ([]domain.AdID, error)
 	// LockOwner serializes writes for the given owner until the current transaction ends. It is only meaningful on a Tx: outside a transaction it returns an error.
 	LockOwner(ctx context.Context, owner domain.UserID) error
 	// CountAdsSince returns how many ads the owner created during the last window.
@@ -55,8 +54,6 @@ type CreateAdRequest struct {
 	PhotoURL   string
 	OwnerID    domain.UserID
 }
-
-type ImportAdsRequest []CreateAdRequest
 
 const (
 	// ErrNotFound is returned when no ad matches the requested identifier.
